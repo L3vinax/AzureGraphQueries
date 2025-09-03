@@ -1,0 +1,17 @@
+Resources
+| where type == "microsoft.network/virtualnetworks"
+| mv-expand subnet = properties.subnets
+| project vnetName = name, subnetName = subnet.name, subnetId = tostring(subnet.id), vnetId = id, location, subscriptionId
+| join kind=leftouter (
+    Resources
+    | where type == "microsoft.network/networksecuritygroups"
+    | mv-expand nsgSubnets = properties.networkInterfaces
+    | project nsgName = name, nsgId = id, associatedSubnetId = tostring(properties.subnets[0].id)
+) on $left.subnetId == $right.associatedSubnetId
+| join kind=leftouter (
+    Resources
+    | where type == "microsoft.network/routetables"
+    | mv-expand routeSubnets = properties.subnets
+    | project routeTableName = name, routeTableId = id, associatedSubnetId = tostring(routeSubnets.id)
+) on $left.subnetId == $right.associatedSubnetId
+| project subscriptionId, location, vnetName, subnetName, nsgName, routeTableName
